@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android Security Lab — Gamificación</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2235;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.14);
+  --text: #e8edf8;
+  --muted: #6b7a99;
+  --accent: #00e5a0;
+  --accent2: #0088ff;
+  --red: #ff4757;
+  --amber: #ffa520;
+  --easy: #00e5a0;
+  --med: #ffa520;
+  --hard: #ff4757;
+  --radius: 12px;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grid bg */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.header-logo {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.header-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.header-sub { font-size: 13px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.level-pill {
+  background: rgba(0,229,160,0.1);
+  border: 1px solid rgba(0,229,160,0.25);
+  color: var(--accent);
+  font-size: 11px;
+  font-family: var(--mono);
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* HUD */
+.hud {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 1.75rem;
+}
+.hud-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.hud-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.hud-card:nth-child(1)::before { background: var(--accent); }
+.hud-card:nth-child(2)::before { background: var(--accent2); }
+.hud-card:nth-child(3)::before { background: var(--amber); }
+.hud-card:nth-child(4)::before { background: var(--red); }
+.hud-label { font-size: 10px; font-family: var(--mono); color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+.hud-value { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+.hud-card:nth-child(1) .hud-value { color: var(--accent); }
+.hud-card:nth-child(2) .hud-value { color: var(--accent2); }
+.hud-card:nth-child(3) .hud-value { color: var(--amber); }
+.hud-card:nth-child(4) .hud-value { color: var(--text); }
+
+/* XP Bar */
+.xp-section { margin-bottom: 2rem; }
+.xp-meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.xp-meta-name { font-size: 13px; font-weight: 600; }
+.xp-meta-num { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.xp-bg { background: var(--surface); border-radius: 99px; height: 6px; overflow: hidden; }
+.xp-fill { background: linear-gradient(90deg, var(--accent), var(--accent2)); height: 6px; border-radius: 99px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 1.75rem; background: var(--surface); border-radius: 10px; padding: 4px; border: 1px solid var(--border); width: fit-content; }
+.tab {
+  padding: 8px 20px; font-size: 13px; font-weight: 600;
+  border-radius: 8px; border: none; cursor: pointer;
+  background: transparent; color: var(--muted);
+  transition: all .2s; font-family: var(--sans);
+}
+.tab:hover { color: var(--text); }
+.tab.active { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+
+/* Challenge grid */
+.challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 2rem;
+}
+.vuln-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+  overflow: hidden;
+}
+.vuln-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.vuln-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.vuln-card:hover::after { opacity: 1; }
+.vuln-card.selected { border-color: var(--accent2); background: rgba(0,136,255,0.08); }
+.vuln-card.done { border-color: rgba(0,229,160,0.3); background: rgba(0,229,160,0.05); }
+.vc-icon { font-size: 22px; margin-bottom: 8px; display: block; }
+.vc-title { font-size: 12px; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
+.diff-badge {
+  font-size: 9px; font-family: var(--mono); font-weight: 700;
+  padding: 2px 7px; border-radius: 99px; letter-spacing: .05em;
+  display: inline-block; margin-bottom: 6px;
+}
+.diff-easy { background: rgba(0,229,160,.15); color: var(--easy); border: 1px solid rgba(0,229,160,.25); }
+.diff-med  { background: rgba(255,165,32,.15); color: var(--med);  border: 1px solid rgba(255,165,32,.25); }
+.diff-hard { background: rgba(255,71,87,.15);  color: var(--hard); border: 1px solid rgba(255,71,87,.25);  }
+.vc-pts { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.vc-check { position: absolute; top: 8px; right: 8px; font-size: 16px; }
+
+/* Challenge detail */
+.challenge-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  display: none;
+  animation: slideIn .25s ease;
+}
+@keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.challenge-panel.show { display: block; }
+
+.panel-header { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 1.25rem; }
+.panel-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.panel-meta-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+.panel-meta-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.progress-dots { display: flex; gap: 5px; align-items: center; margin-bottom: 1.25rem; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border2); transition: all .2s; }
+.dot.done { background: var(--accent); border-color: var(--accent); }
+.dot.active { background: var(--accent2); border-color: var(--accent2); width: 20px; border-radius: 4px; }
+.dot-label { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-left: 8px; }
+
+.scenario-block {
+  background: rgba(0,136,255,0.07);
+  border-left: 3px solid var(--accent2);
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.scenario-label {
+  font-size: 10px; font-family: var(--mono); font-weight: 700;
+  color: var(--accent2); letter-spacing: .1em; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.scenario-block code {
+  background: rgba(0,0,0,.4);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+.question { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+
+.options { display: grid; gap: 8px; margin-bottom: 1rem; }
+.opt {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: .75rem 1rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+  transition: all .2s;
+  font-family: var(--sans);
+  color: var(--text);
+  text-align: left;
+  width: 100%;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent2); background: rgba(0,136,255,.07); }
+.opt.correct { background: rgba(0,229,160,.1); border-color: var(--accent); color: #a8ffd8; }
+.opt.wrong   { background: rgba(255,71,87,.1);  border-color: var(--red);  color: #ffb3b8; }
+.opt:disabled { cursor: default; }
+.opt-letter { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--muted); min-width: 16px; margin-top: 1px; }
+
+.feedback {
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  display: none;
+}
+.feedback.correct { background: rgba(0,229,160,.1); border: 1px solid rgba(0,229,160,.3); color: #a8ffd8; }
+.feedback.wrong   { background: rgba(255,71,87,.1);  border: 1px solid rgba(255,71,87,.3);  color: #ffb3b8; }
+.feedback strong { display: block; margin-bottom: 6px; font-size: 14px; }
+
+.tools-section { margin-bottom: 1.25rem; }
+.tools-label { font-size: 10px; font-family: var(--mono); font-weight: 700; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+.tool-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tool-tag {
+  font-family: var(--mono); font-size: 11px;
+  background: rgba(0,136,255,.1);
+  border: 1px solid rgba(0,136,255,.25);
+  color: #7ec8ff;
+  padding: 3px 9px; border-radius: 99px;
+}
+
+.panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn-back {
+  padding: 9px 18px; font-size: 13px; font-weight: 700;
+  border-radius: 8px; border: 1px solid var(--border2);
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all .2s; font-family: var(--sans);
+}
+.btn-back:hover { color: var(--text); border-color: var(--text); }
+.btn-next {
+  padding: 9px 18px; font-size: 13px; font-weight: 700;
+  border-radius: 8px; border: none;
+  background: linear-gradient(135deg, var(--accent2), #0055cc);
+  color: #fff; cursor: pointer; transition: all .2s; font-family: var(--sans);
+}
+.btn-next:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.done-badge { font-size: 12px; font-family: var(--mono); color: var(--accent); margin-left: auto; }
+
+/* Glossary */
+.glossary-list { display: grid; gap: 1px; background: var(--border); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.g-row { display: flex; gap: 16px; align-items: flex-start; padding: 1rem 1.25rem; background: var(--surface); transition: background .15s; }
+.g-row:hover { background: var(--surface2); }
+.g-ico { font-size: 20px; width: 28px; flex-shrink: 0; margin-top: 2px; }
+.g-term { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.g-def { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 6px; }
+
+/* Badges */
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.badge-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1rem;
+  text-align: center;
+  transition: all .2s;
+}
+.badge-card.unlocked { border-color: rgba(0,229,160,.35); background: rgba(0,229,160,.05); }
+.badge-card.locked { opacity: .35; }
+.badge-ico { font-size: 32px; margin-bottom: 8px; display: block; }
+.badge-name { font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+.badge-cond { font-size: 11px; color: var(--muted); font-family: var(--mono); line-height: 1.4; }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--surface2); border: 1px solid var(--accent);
+  color: var(--accent); font-family: var(--mono); font-size: 13px; font-weight: 700;
+  padding: 12px 24px; border-radius: 99px;
+  opacity: 0; transition: all .35s cubic-bezier(.4,0,.2,1);
+  z-index: 999; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 0 30px rgba(0,229,160,.2);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Tab content */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+@media (max-width: 640px) {
+  .hud { grid-template-columns: repeat(2, 1fr); }
+  .challenge-grid { grid-template-columns: repeat(2, 1fr); }
+  .header-right { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-logo">🤖</div>
+    <div>
+      <div class="header-title">Android Security Lab</div>
+      <div class="header-sub">// gamificación de vulnerabilidades y defensas</div>
+    </div>
+    <div class="header-right">
+      <span class="level-pill" id="level-pill">LVL 1 — ANALISTA JUNIOR</span>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="hud-card"><div class="hud-label">Puntos XP</div><div class="hud-value" id="hud-xp">0</div></div>
+    <div class="hud-card"><div class="hud-label">Nivel</div><div class="hud-value" id="hud-lv">1</div></div>
+    <div class="hud-card"><div class="hud-label">Racha 🔥</div><div class="hud-value" id="hud-streak">0</div></div>
+    <div class="hud-card"><div class="hud-label">Completados</div><div class="hud-value" id="hud-done">0/12</div></div>
+  </div>
+
+  <div class="xp-section">
+    <div class="xp-meta">
+      <span class="xp-meta-name" id="xp-name">Nivel 1 — Analista Junior</span>
+      <span class="xp-meta-num" id="xp-num">0 / 150 XP</span>
+    </div>
+    <div class="xp-bg"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('desafios')">⚔️ Desafíos</button>
+    <button class="tab" onclick="switchTab('glosario')">📖 Glosario</button>
+    <button class="tab" onclick="switchTab('logros')">🏆 Logros</button>
+  </div>
+
+  <!-- DESAFÍOS TAB -->
+  <div class="tab-content active" id="tab-desafios">
+    <div class="challenge-grid" id="vuln-grid"></div>
+    <div class="challenge-panel" id="challenge-panel"></div>
+  </div>
+
+  <!-- GLOSARIO TAB -->
+  <div class="tab-content" id="tab-glosario">
+    <div class="glossary-list" id="glossary-list"></div>
+  </div>
+
+  <!-- LOGROS TAB -->
+  <div class="tab-content" id="tab-logros">
+    <div class="badge-grid" id="badge-grid"></div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const LEVELS = [
+  { name: 'Analista Junior', xp: 0 },
+  { name: 'Investigador', xp: 150 },
+  { name: 'Pen Tester', xp: 400 },
+  { name: 'Red Teamer', xp: 750 },
+  { name: 'Arquitecto de Seguridad', xp: 1200 },
+];
+
+const challenges = [
+  {
+    id:'c1', title:'Almacenamiento Inseguro', icon:'💾', diff:'easy', pts:50,
+    accent:'rgba(0,229,160,0.15)', iconBg:'rgba(0,229,160,0.2)',
+    desc:'Las apps Android pueden guardar datos en lugares accesibles sin protección.',
+    scenario:'Una app bancaria guarda el PIN en texto plano en SharedPreferences. Con ADB shell se ejecuta: <code>cat /data/data/com.bank.app/shared_prefs/config.xml</code> y el PIN aparece en texto claro.',
+    question:'¿Cuál es la defensa más efectiva para este escenario?',
+    options:[
+      { text:'Guardar el PIN en una variable global en memoria RAM', correct:false },
+      { text:'Usar Android Keystore System para cifrar datos sensibles con claves ligadas al hardware', correct:true },
+      { text:'Cambiar el nombre del archivo XML para dificultar su localización', correct:false },
+      { text:'Eliminar los logs de la app', correct:false },
+    ],
+    explanation:'Android Keystore System cifra datos con claves respaldadas por hardware (TEE/Secure Enclave). Incluso con root, las claves no pueden extraerse. Complementar con EncryptedSharedPreferences de Jetpack Security.',
+    tools:['Android Keystore API','Jetpack Security','drozer','MobSF'],
+  },
+  {
+    id:'c2', title:'Intent Injection', icon:'🔀', diff:'med', pts:80,
+    accent:'rgba(0,136,255,0.12)', iconBg:'rgba(0,136,255,0.2)',
+    desc:'Intents maliciosos pueden activar componentes no protegidos de una app.',
+    scenario:'Una Activity con <code>android:exported="true"</code> no valida el origen. El atacante lanza: <code>adb shell am start -n com.pay.app/.AdminActivity --es "action" "transfer"</code>. La Activity se ejecuta sin autenticación.',
+    question:'¿Qué combinación de defensas mitiga esta vulnerabilidad?',
+    options:[
+      { text:'Poner la Activity en un módulo separado del APK', correct:false },
+      { text:'Usar android:exported="false" + custom permissions + validación del origen del Intent', correct:true },
+      { text:'Cambiar el nombre de la Activity en el Manifest', correct:false },
+      { text:'Solo usar HTTPS en la app', correct:false },
+    ],
+    explanation:'android:exported="false" impide que apps externas activen el componente. Custom permissions con protectionLevel="signature" garantizan que solo apps del mismo certificado accedan. Validar caller con getCallingPackage().',
+    tools:['drozer','apktool','jadx','Android Lint'],
+  },
+  {
+    id:'c3', title:'SSL Pinning Bypass', icon:'🔓', diff:'hard', pts:120,
+    accent:'rgba(255,71,87,0.1)', iconBg:'rgba(255,71,87,0.2)',
+    desc:'Interceptar tráfico de apps que no implementan Certificate Pinning.',
+    scenario:'Se instala el certificado CA de Burp Suite en el dispositivo. La app no implementa pinning. Todo el tráfico HTTPS queda visible: tokens de sesión, credenciales y datos personales quedan expuestos.',
+    question:'¿Cómo implementar SSL/Certificate Pinning correctamente en Android?',
+    options:[
+      { text:'Usar solo HTTP en redes internas de confianza', correct:false },
+      { text:'Bloquear todas las conexiones salientes excepto al propio servidor', correct:false },
+      { text:'Implementar Network Security Config con pin-set + validar hash SHA-256 en OkHttp CertificatePinner con pin de respaldo', correct:true },
+      { text:'Usar certificados autofirmados en el servidor', correct:false },
+    ],
+    explanation:'Network Security Config declara pins en XML. OkHttp CertificatePinner verifica el hash SHA-256. Incluir al menos 2 pines (backup pin) para evitar lockout en rotación de certificados. TrustKit-Android simplifica la implementación y ofrece reporting.',
+    tools:['Burp Suite','Frida','objection','TrustKit-Android','OkHttp CertificatePinner'],
+  },
+  {
+    id:'c4', title:'Permisos Excesivos', icon:'🛡️', diff:'easy', pts:50,
+    accent:'rgba(0,229,160,0.15)', iconBg:'rgba(0,229,160,0.2)',
+    desc:'Apps que piden más permisos de los necesarios amplían la superficie de ataque.',
+    scenario:'Una app de linterna solicita: CAMERA, READ_CONTACTS, ACCESS_FINE_LOCATION, READ_SMS, RECORD_AUDIO. Solo necesita CAMERA. Análisis estático revela que los extras envían datos a un servidor C2.',
+    question:'¿Cuál es la práctica correcta de gestión de permisos?',
+    options:[
+      { text:'Solicitar todos los permisos al inicio para no molestar después', correct:false },
+      { text:'Principio de mínimo privilegio: solo permisos necesarios, just-in-time, verificados en runtime', correct:true },
+      { text:'Declarar permisos en el Manifest pero no pedirlos al usuario', correct:false },
+      { text:'Usar permisos de sistema para evitar el diálogo de solicitud', correct:false },
+    ],
+    explanation:'Android 6.0+ requiere solicitar permisos dangerous en runtime. Solicitar contextualizados justo antes de usarlos con rationale. Usar ActivityResultContracts.RequestPermission. Auditar con: aapt dump permissions app.apk',
+    tools:['MobSF','apktool','aapt','Android Studio Lint'],
+  },
+  {
+    id:'c5', title:'Tapjacking', icon:'👆', diff:'med', pts:80,
+    accent:'rgba(0,136,255,0.12)', iconBg:'rgba(0,136,255,0.2)',
+    desc:'Overlay malicioso que intercepta toques destinados a la app víctima.',
+    scenario:'Una app maliciosa dibuja una ventana TYPE_APPLICATION_OVERLAY sobre la app de pagos. El usuario cree tocar "Confirmar $10" pero realmente confirma una transferencia de $1,000.',
+    question:'¿Qué mecanismo de Android previene el Tapjacking?',
+    options:[
+      { text:'Usar un fondo de pantalla animado como distracción', correct:false },
+      { text:'Aplicar filterTouchesWhenObscured="true" en Views críticas y verificar FLAG_WINDOW_IS_OBSCURED en el MotionEvent', correct:true },
+      { text:'Pedir al usuario cerrar todas las apps antes de pagar', correct:false },
+      { text:'Usar solo botones físicos del dispositivo', correct:false },
+    ],
+    explanation:'filterTouchesWhenObscured="true" hace que Android descarte toques cuando la ventana está cubierta. Para lógica custom: verificar (event.getFlags() & MotionEvent.FLAG_WINDOW_IS_OBSCURED) != 0. Android 12 ya restringe tipos de overlay permitidos.',
+    tools:['drozer','ADB','Tapjacking PoC tools'],
+  },
+  {
+    id:'c6', title:'Backup Inseguro', icon:'☁️', diff:'easy', pts:50,
+    accent:'rgba(0,229,160,0.15)', iconBg:'rgba(0,229,160,0.2)',
+    desc:'El mecanismo de backup puede exponer datos de apps sensibles.',
+    scenario:'Con android:allowBackup="true" (default), el atacante ejecuta: <code>adb backup -f backup.ab com.bank.app</code>. Extrae la BD SQLite con historial de transacciones, tokens y preferencias.',
+    question:'¿Cómo proteger los datos ante backups no autorizados?',
+    options:[
+      { text:'Cifrar manualmente solo la base de datos SQLite', correct:false },
+      { text:'Usar android:allowBackup="false" para apps sensibles, o configurar fullBackupContent con reglas de exclusión y dataExtractionRules en Android 12+', correct:true },
+      { text:'No usar SQLite, solo guardar datos en el servidor', correct:false },
+      { text:'Habilitar backup para detectar si alguien extrae los datos', correct:false },
+    ],
+    explanation:'Para apps financieras, allowBackup="false" es lo más seguro. Si se necesita backup parcial, usar fullBackupContent para excluir directorios sensibles. En Android 12+, dataExtractionRules es el mecanismo nuevo. SQLCipher cifra la BD si se requiere backup.',
+    tools:['ADB','Android Backup Extractor','MobSF','SQLCipher'],
+  },
+  {
+    id:'c7', title:'WebView Injection', icon:'💉', diff:'hard', pts:120,
+    accent:'rgba(255,71,87,0.1)', iconBg:'rgba(255,71,87,0.2)',
+    desc:'WebViews mal configuradas permiten XSS y acceso a APIs nativas de Android.',
+    scenario:'App carga URLs externas con setJavaScriptEnabled(true) y addJavascriptInterface. Un sitio malicioso ejecuta <code>Android.sendSMS("hacker","Msg")</code> directamente en JavaScript.',
+    question:'¿Cuál es el conjunto correcto de defensas para WebView?',
+    options:[
+      { text:'Usar solo HTTP en WebViews para evitar problemas con certificados', correct:false },
+      { text:'Deshabilitar JS si no es necesario; si se usa addJavascriptInterface, anotar métodos con @JavascriptInterface, allowlist de URLs y setSafeBrowsingEnabled(true)', correct:true },
+      { text:'Cargar solo páginas propias con URLs hardcodeadas en el APK', correct:false },
+      { text:'Reemplazar completamente WebView por Chrome CustomTabs siempre', correct:false },
+    ],
+    explanation:'@JavascriptInterface (API 17+) restringe qué métodos son visibles a JS. Validar URL con allowlist antes de cargar. setAllowFileAccess(false), setAllowUniversalAccessFromFileURLs(false). Para contenido externo, Chrome Custom Tabs es más seguro que WebView propio.',
+    tools:['Burp Suite','MobSF','jadx','drozer','Android WebView Analyzer'],
+  },
+  {
+    id:'c8', title:'Root Detection Bypass', icon:'📱', diff:'hard', pts:120,
+    accent:'rgba(255,71,87,0.1)', iconBg:'rgba(255,71,87,0.2)',
+    desc:'Sin detección de root, el atacante puede inyectar código y manipular la app.',
+    scenario:'El atacante usa Magisk para bypassear la detección básica. Con Frida hookea la función de autenticación para que retorne siempre true. Acceso total sin credenciales.',
+    question:'¿Cuál es la estrategia de defensa multicapa más efectiva?',
+    options:[
+      { text:'Solo verificar si existe el archivo /system/app/Superuser.apk', correct:false },
+      { text:'Verificación multicapa: Play Integrity API + detección de binarios su + verificación BUILD.TAGS + integridad del runtime con hash verification', correct:true },
+      { text:'Forzar al usuario a desinstalar Magisk antes de usar la app', correct:false },
+      { text:'Implementar root detection solo en la versión de producción', correct:false },
+    ],
+    explanation:'Play Integrity API verifica en servidores de Google la integridad del dispositivo y el APK. Combinar con detección local: binarios su, write permissions en /system, Magisk Manager. RootBeer ofrece múltiples checks. Anti-Frida: verificar puertos 27042. El objetivo es elevar el costo del ataque.',
+    tools:['Play Integrity API','RootBeer','Frida','Magisk','RASP solutions'],
+  },
+  {
+    id:'c9', title:'Logging Sensible', icon:'📋', diff:'easy', pts:50,
+    accent:'rgba(0,229,160,0.15)', iconBg:'rgba(0,229,160,0.2)',
+    desc:'Datos sensibles en logs de Android son accesibles para otras apps o atacantes.',
+    scenario:'El desarrollador usa <code>Log.d("AUTH","Token: "+userToken)</code> en producción. Cualquier app con READ_LOGS o acceso ADB captura tokens, contraseñas y PINs en texto claro.',
+    question:'¿Cuál es la práctica correcta de logging para builds de producción?',
+    options:[
+      { text:'Cambiar Log.d a Log.v para que sea menos visible', correct:false },
+      { text:'Deshabilitar logs con BuildConfig.DEBUG, usar ProGuard para eliminarlos en release, y nunca loguear tokens, PINs ni contraseñas', correct:true },
+      { text:'Guardar los logs en un archivo cifrado en la tarjeta SD', correct:false },
+      { text:'Usar un tag de log genérico para dificultar la búsqueda', correct:false },
+    ],
+    explanation:'ProGuard/R8 elimina llamadas Log.* en builds release. Usar if(BuildConfig.DEBUG) guards. Timber permite control granular por flavor. Desde Android 4.1+, READ_LOGS es necesario, pero el riesgo existe. Nunca loguear PII, tokens, credenciales ni datos sensibles.',
+    tools:['ProGuard/R8','Timber','ADB logcat','MobSF','Android Lint'],
+  },
+  {
+    id:'c10', title:'Broadcast Inseguro', icon:'📡', diff:'med', pts:80,
+    accent:'rgba(0,136,255,0.12)', iconBg:'rgba(0,136,255,0.2)',
+    desc:'Broadcasts sin protección exponen eventos internos de la app a terceros.',
+    scenario:'La app envía: <code>sendBroadcast(new Intent("com.bank.TXN_DONE").putExtra("amount",500))</code>. Cualquier app registra un receiver para esa acción e intercepta los datos de transacción.',
+    question:'¿Cómo asegurar la comunicación por Broadcasts internos?',
+    options:[
+      { text:'Usar Intents implícitos para que sean más difíciles de interceptar', correct:false },
+      { text:'Usar LocalBroadcastManager para comunicación interna, o sendBroadcast con custom permission, o Explicit Intents a un receiver específico', correct:true },
+      { text:'Cifrar los extras del Intent con Base64', correct:false },
+      { text:'Solo enviar Broadcasts cuando hay conexión a Internet activa', correct:false },
+    ],
+    explanation:'LocalBroadcastManager (o LiveData/EventBus) mantiene broadcasts dentro del proceso. Para cross-process: sendBroadcast(intent, receiverPermission) con custom permission de firma. Desde Android 8.0, los implicit broadcast receivers en Manifest tienen restricciones.',
+    tools:['drozer','jadx','Android Lint','ADB'],
+  },
+  {
+    id:'c11', title:'Criptografía Débil', icon:'🔑', diff:'med', pts:80,
+    accent:'rgba(0,136,255,0.12)', iconBg:'rgba(0,136,255,0.2)',
+    desc:'Algoritmos criptográficos obsoletos comprometen la confidencialidad de los datos.',
+    scenario:'Análisis revela: <code>Cipher.getInstance("DES/ECB/NoPadding")</code> con clave hardcodeada "mysecret". DES tiene 56 bits (se rompe en horas), ECB no oculta patrones y la clave se extrae del APK con strings.',
+    question:'¿Cuál es la implementación criptográfica correcta para Android?',
+    options:[
+      { text:'Cambiar DES por 3DES y agregar Base64 encoding al resultado', correct:false },
+      { text:'Usar AES-256-GCM con IV aleatorio por operación, claves en Android Keystore, y nunca secretos hardcodeados', correct:true },
+      { text:'Usar SHA-1 para cifrar los datos importantes de la app', correct:false },
+      { text:'Implementar un algoritmo de cifrado propio más complejo', correct:false },
+    ],
+    explanation:'AES-256 en modo GCM provee cifrado autenticado (confidencialidad + integridad). IV único por operación es crítico en GCM. Android Keystore genera claves en TEE hardware. Google Tink simplifica implementación correcta. Prohibidos: DES, 3DES, RC4, MD5 para crypto, modo ECB.',
+    tools:['Google Tink','Android Keystore','jadx','apktool','MobSF'],
+  },
+  {
+    id:'c12', title:'Reverse Engineering', icon:'🔬', diff:'hard', pts:120,
+    accent:'rgba(255,71,87,0.1)', iconBg:'rgba(255,71,87,0.2)',
+    desc:'Los APKs pueden descompilarse para extraer lógica de negocio y secretos.',
+    scenario:'Con JADX sobre el APK de la Play Store se encuentran: claves de API de Google Maps hardcodeadas, lógica de descuentos en Java legible y endpoints internos de administración expuestos.',
+    question:'¿Qué técnicas anti-reversing son más efectivas en combinación?',
+    options:[
+      { text:'Renombrar variables y métodos manualmente con nombres largos y confusos', correct:false },
+      { text:'ProGuard/R8 para ofuscación + lógica crítica en NDK nativo + secretos en servidor/CredentialManager + verificar firma del APK en runtime', correct:true },
+      { text:'Publicar la app solo en tiendas alternativas para dificultar el acceso', correct:false },
+      { text:'Cifrar el APK con contraseña ZIP antes de publicar', correct:false },
+    ],
+    explanation:'ProGuard/R8 ofusca y elimina código muerto. Lógica crítica en C/C++ via NDK es más difícil de reversear. NUNCA hardcodear secretos: usar APIs en servidor, Keystore, o Secret Manager. Verificar firma con PackageManager.getPackageInfo(). DexGuard (comercial) da protección avanzada.',
+    tools:['jadx','apktool','Frida','ProGuard/R8','DexGuard','MobSF','apkid'],
+  },
+];
+
+const glossaryItems = [
+  { ico:'🔧', term:'ADB (Android Debug Bridge)', def:'Herramienta CLI para comunicarse con un dispositivo Android. Usada por atacantes para extraer datos, instalar apps maliciosas o ejecutar comandos con privilegios.', tools:['adb shell','adb backup','adb logcat'] },
+  { ico:'🐉', term:'Drozer', def:'Framework de seguridad para Android que enumera y explota componentes exportados (Activities, Services, BroadcastReceivers, ContentProviders). Esencial en pentesting móvil.', tools:['drozer'] },
+  { ico:'🔍', term:'MobSF (Mobile Security Framework)', def:'Plataforma de análisis estático y dinámico para APKs Android e IPAs iOS. Automatiza detección de vulnerabilidades, permisos y comunicaciones de red.', tools:['MobSF'] },
+  { ico:'💉', term:'Frida', def:'Framework de instrumentación dinámica que hookea funciones en runtime, modifica comportamiento, bypassea controles y extrae datos en tiempo de ejecución. Usado en bypass de root detection, SSL pinning, etc.', tools:['Frida','objection'] },
+  { ico:'📄', term:'JADX', def:'Decompilador Dalvik/Java para Android. Convierte archivos DEX y APK en código Java legible. Fundamental para análisis estático de código fuente decompilado.', tools:['jadx','jadx-gui'] },
+  { ico:'🌐', term:'Burp Suite', def:'Proxy de intercepción HTTP/HTTPS líder en la industria. Captura, modifica y repite peticiones de red de apps móviles. Usado para análisis de APIs y traffic tampering.', tools:['Burp Suite','OWASP ZAP'] },
+  { ico:'🔐', term:'Android Keystore', def:'Sistema hardware que almacena claves criptográficas en un entorno de ejecución de confianza (TEE). Las claves no pueden extraerse del dispositivo, incluso con root o acceso físico.', tools:['Android Keystore API'] },
+  { ico:'✅', term:'Play Integrity API', def:'Sucesor de SafetyNet. Servicio de Google que verifica en sus servidores si el dispositivo es genuino, el APK no fue modificado y el ambiente de ejecución es seguro.', tools:['Play Integrity API','Google Play Console'] },
+  { ico:'🛠️', term:'apktool', def:'Herramienta para deconstruir y reconstruir APKs. Permite leer el Manifest, recursos y código smali. Usada tanto en análisis defensivo como ofensivo.', tools:['apktool'] },
+  { ico:'🏷️', term:'ProGuard / R8', def:'Herramientas de ofuscación y minimización de código para Android. R8 (sucesor de ProGuard) reduce tamaño del APK y dificulta el reverse engineering al renombrar clases y métodos.', tools:['ProGuard','R8','Android Gradle Plugin'] },
+];
+
+const badges = [
+  { id:'b1', ico:'🌱', name:'Primer Paso', cond:'Completa tu primer desafío', req:1 },
+  { id:'b2', ico:'🔥', name:'Racha x3', cond:'3 aciertos consecutivos', reqStreak:3 },
+  { id:'b3', ico:'🥉', name:'Maestro Fácil', cond:'Completa los 4 desafíos fáciles', reqDiff:'easy', reqCount:4 },
+  { id:'b4', ico:'🥈', name:'Guerrero Medio', cond:'Completa los 4 desafíos medios', reqDiff:'med', reqCount:4 },
+  { id:'b5', ico:'💀', name:'Élite', cond:'Completa los 4 desafíos difíciles', reqDiff:'hard', reqCount:4 },
+  { id:'b6', ico:'🎖️', name:'Experto Android', cond:'Completa los 12 desafíos', reqTotal:12 },
+  { id:'b7', ico:'⚡', name:'Velocista', cond:'Llega al nivel 3', reqLevel:3 },
+  { id:'b8', ico:'🌟', name:'Leyenda', cond:'Alcanza 1000 XP', reqXP:1000 },
+];
+
+let state = { xp:0, level:1, streak:0, completed: new Set(), badges: new Set(), current:null, answered:false };
+
+function getLevel(xp) {
+  let l=0;
+  for(let i=LEVELS.length-1;i>=0;i--){ if(xp>=LEVELS[i].xp){l=i;break;} }
+  return Math.min(l, LEVELS.length-1);
+}
+
+function updateHUD() {
+  const li = getLevel(state.xp);
+  state.level = li+1;
+  const lv = LEVELS[li];
+  const nx = LEVELS[li+1] || {xp: lv.xp+500, name:'Máximo'};
+  const pct = li>=LEVELS.length-1 ? 100 : Math.round(((state.xp-lv.xp)/(nx.xp-lv.xp))*100);
+  document.getElementById('hud-xp').textContent = state.xp;
+  document.getElementById('hud-lv').textContent = state.level;
+  document.getElementById('hud-streak').textContent = state.streak;
+  document.getElementById('hud-done').textContent = state.completed.size+'/12';
+  document.getElementById('xp-fill').style.width = pct+'%';
+  document.getElementById('xp-name').textContent = 'Nivel '+state.level+' — '+lv.name;
+  document.getElementById('xp-num').textContent = (state.xp-lv.xp)+' / '+(nx.xp-lv.xp)+' XP';
+  document.getElementById('level-pill').textContent = 'LVL '+state.level+' — '+lv.name.toUpperCase();
+}
+
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+function checkBadges() {
+  badges.forEach(b => {
+    if(state.badges.has(b.id)) return;
+    let ok=false;
+    if(b.req && state.completed.size>=b.req) ok=true;
+    if(b.reqStreak && state.streak>=b.reqStreak) ok=true;
+    if(b.reqTotal && state.completed.size>=b.reqTotal) ok=true;
+    if(b.reqLevel && state.level>=b.reqLevel) ok=true;
+    if(b.reqXP && state.xp>=b.reqXP) ok=true;
+    if(b.reqDiff && b.reqCount) {
+      const n = challenges.filter(c=>c.diff===b.reqDiff&&state.completed.has(c.id)).length;
+      if(n>=b.reqCount) ok=true;
+    }
+    if(ok){ state.badges.add(b.id); toast('🏆 Logro desbloqueado: '+b.name); }
+  });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  event.target.classList.add('active');
+  if(tab==='glosario') renderGlossary();
+  if(tab==='logros') renderBadges();
+}
+
+function renderGrid() {
+  const grid=document.getElementById('vuln-grid');
+  grid.innerHTML='';
+  challenges.forEach(c=>{
+    const done=state.completed.has(c.id);
+    const sel=state.current===c.id;
+    const dlabel={easy:'FÁCIL',med:'MEDIO',hard:'DIFÍCIL'}[c.diff];
+    const dcls={easy:'diff-easy',med:'diff-med',hard:'diff-hard'}[c.diff];
+    const d=document.createElement('div');
+    d.className='vuln-card'+(done?' done':'')+(sel?' selected':'');
+    d.innerHTML=`
+      ${done?'<span class="vc-check">✅</span>':''}
+      <span class="vc-icon">${c.icon}</span>
+      <div class="vc-title">${c.title}</div>
+      <span class="diff-badge ${dcls}">${dlabel}</span>
+      <div class="vc-pts">⭐ ${c.pts} XP</div>
+    `;
+    d.onclick=()=>selectChallenge(c.id);
+    grid.appendChild(d);
+  });
+}
+
+function selectChallenge(id) {
+  state.current=id;
+  state.answered=false;
+  renderGrid();
+  renderChallenge(id);
+  const panel=document.getElementById('challenge-panel');
+  panel.classList.add('show');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function renderChallenge(id) {
+  const c=challenges.find(x=>x.id===id);
+  const done=state.completed.has(id);
+  const idx=challenges.findIndex(x=>x.id===id);
+  const dlabel={easy:'FÁCIL',med:'MEDIO',hard:'DIFÍCIL'}[c.diff];
+  const dcls={easy:'diff-easy',med:'diff-med',hard:'diff-hard'}[c.diff];
+  const optLetters=['A','B','C','D'];
+
+  let dots='<div class="progress-dots">';
+  challenges.forEach((ch,i)=>{
+    const cls=state.completed.has(ch.id)?'done':(i===idx?'active':'');
+    dots+=`<div class="dot ${cls}" title="${ch.title}"></div>`;
+  });
+  dots+=`<span class="dot-label">${state.completed.size}/12 completados</span></div>`;
+
+  const opts=c.options.map((o,i)=>`
+    <button class="opt" data-correct="${o.correct}" onclick="answer(this,'${id}',${o.correct})" ${done?'disabled':''}>
+      <span class="opt-letter">${optLetters[i]}</span>
+      <span>${o.text}</span>
+    </button>
+  `).join('');
+
+  const tools=c.tools.map(t=>`<span class="tool-tag">${t}</span>`).join('');
+  const nextId=idx<challenges.length-1?challenges[idx+1].id:null;
+
+  document.getElementById('challenge-panel').innerHTML=`
+    ${dots}
+    <div class="panel-header">
+      <div class="panel-icon" style="background:${c.iconBg}">${c.icon}</div>
+      <div>
+        <div class="panel-meta-title">${c.title} <span class="diff-badge ${dcls}" style="vertical-align:middle">${dlabel}</span></div>
+        <div class="panel-meta-desc">${c.desc}</div>
+      </div>
+    </div>
+    <div class="scenario-block">
+      <div class="scenario-label">⚠ Escenario de ataque</div>
+      ${c.scenario}
+    </div>
+    <div class="question">${c.question}</div>
+    <div class="options">${opts}</div>
+    <div class="feedback" id="fb-${id}"></div>
+    <div class="tools-section">
+      <div class="tools-label">🛠 Herramientas relevantes</div>
+      <div class="tool-tags">${tools}</div>
+    </div>
+    <div class="panel-actions">
+      <button class="btn-back" onclick="document.getElementById('challenge-panel').classList.remove('show');state.current=null;renderGrid()">← Volver</button>
+      ${nextId?`<button class="btn-next" onclick="selectChallenge('${nextId}')">Siguiente →</button>`:''}
+      ${done?'<span class="done-badge">✅ Completado</span>':''}
+    </div>
+  `;
+
+  if(done) {
+    document.querySelectorAll('.opt').forEach(b=>{
+      if(b.dataset.correct==='true') b.classList.add('correct');
+    });
+    const fb=document.getElementById('fb-'+id);
+    fb.className='feedback correct'; fb.style.display='block';
+    fb.innerHTML=`<strong>✅ Respuesta correcta</strong>${c.explanation}`;
+  }
+}
+
+function answer(btn, id, correct) {
+  if(state.answered||state.completed.has(id)) return;
+  state.answered=true;
+  const c=challenges.find(x=>x.id===id);
+  document.querySelectorAll('.opt').forEach(b=>{ b.disabled=true; if(b.dataset.correct==='true') b.classList.add('correct'); });
+  const fb=document.getElementById('fb-'+id);
+  if(correct) {
+    btn.classList.add('correct');
+    state.streak++; state.xp+=c.pts;
+    if(!state.completed.has(id)) state.completed.add(id);
+    fb.className='feedback correct'; fb.style.display='block';
+    fb.innerHTML=`<strong>✅ ¡Correcto! +${c.pts} XP</strong>${c.explanation}`;
+  } else {
+    btn.classList.add('wrong');
+    state.streak=0;
+    fb.className='feedback wrong'; fb.style.display='block';
+    fb.innerHTML=`<strong>❌ Incorrecto</strong>${c.explanation}`;
+  }
+  checkBadges(); updateHUD(); renderGrid();
+}
+
+function renderGlossary() {
+  document.getElementById('glossary-list').innerHTML=glossaryItems.map(g=>`
+    <div class="g-row">
+      <span class="g-ico">${g.ico}</span>
+      <div>
+        <div class="g-term">${g.term}</div>
+        <div class="g-def">${g.def}</div>
+        <div class="tool-tags">${g.tools.map(t=>`<span class="tool-tag">${t}</span>`).join('')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderBadges() {
+  document.getElementById('badge-grid').innerHTML=badges.map(b=>{
+    const ul=state.badges.has(b.id);
+    return `<div class="badge-card ${ul?'unlocked':'locked'}">
+      <span class="badge-ico">${b.ico}</span>
+      <div class="badge-name">${b.name}</div>
+      <div class="badge-cond">${b.cond}</div>
+    </div>`;
+  }).join('');
+}
+
+updateHUD();
+renderGrid();
+</script>
+</body>
+</html>

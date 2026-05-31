@@ -1,0 +1,40 @@
+{
+  "desafios_completados": "12/12",
+  "respuestas_correctas": "12/12",
+  "puntaje_final": 1000,
+  "nivel_final": "LVL 4 - Red Teamer",
+  "logros_desbloqueados": "8/8",
+  "archivo_base": "android_security_game.html",
+  "capturas": [
+    "01_inicio.png",
+    "02_desafio_almacenamiento_seleccionado.png",
+    "03_quiz_almacenamiento_inseguro.png",
+    "04_quiz_intent_injection.png",
+    "05_quiz_ssl_pinning_bypass.png",
+    "06_quiz_permisos_excesivos.png",
+    "07_quiz_tapjacking.png",
+    "08_quiz_backup_inseguro.png",
+    "09_quiz_webview_injection.png",
+    "10_quiz_root_detection_bypass.png",
+    "11_quiz_logging_sensible.png",
+    "12_quiz_broadcast_inseguro.png",
+    "13_quiz_criptografia_debil.png",
+    "14_quiz_reverse_engineering.png",
+    "15_glosario_herramientas.png",
+    "16_final_logros.png"
+  ],
+  "defensas_revisadas": [
+    "Android Keystore y EncryptedSharedPreferences",
+    "android:exported=false, permisos custom y validación de Intents",
+    "Network Security Config y CertificatePinner con pin de respaldo",
+    "Principio de mínimo privilegio y permisos en runtime",
+    "filterTouchesWhenObscured y validación de overlays",
+    "allowBackup=false, reglas de exclusión y dataExtractionRules",
+    "WebView con allowlist, Safe Browsing y @JavascriptInterface",
+    "Play Integrity API, RootBeer y controles anti-Frida",
+    "BuildConfig.DEBUG, ProGuard/R8 y cero secretos en logs",
+    "LocalBroadcastManager, permisos custom e Intents explícitos",
+    "AES-256-GCM, IV aleatorio y claves en Android Keystore",
+    "ProGuard/R8, NDK, secretos en servidor y verificación de firma"
+  ]
+}
